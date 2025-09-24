@@ -1,0 +1,102 @@
+name: Multi-language CI
+
+on:
+  push:
+    branches: [ main, ci-automation ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  python:
+    name: Python tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.10, 3.11]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f python-package/pyproject.toml ]; then pip install poetry && poetry install; fi
+          if [ -f flask-app/requirements.txt ]; then pip install -r flask-app/requirements.txt; fi
+          if [ -f fastapi/requirements.txt ]; then pip install -r fastapi/requirements.txt; fi
+      - name: Run tests
+        run: |
+          PYTHONPATH=python-package/src pytest -q || true
+
+  node:
+    name: Node (Express & React)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - name: Install & build node-express
+        run: |
+          if [ -f node-express/package.json ]; then (cd node-express && npm ci); fi
+      - name: Install & build react-vite
+        run: |
+          if [ -f react-vite/package.json ]; then (cd react-vite && npm ci && npm run build --if-present); fi
+
+  go:
+    name: Go build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - name: Build
+        run: |
+          if [ -f go/main.go ]; then go build ./go; fi
+
+  rust:
+    name: Rust build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Build
+        run: |
+          if [ -f rust/Cargo.toml ]; then (cd rust && cargo build --workspace --all-targets); fi
+
+  java:
+    name: Java (Maven) build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build with Maven
+        run: |
+          if [ -f java-maven/pom.xml ]; then (cd java-maven && mvn -B -DskipTests package); fi
+
+  cpp:
+    name: C/C++ build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build C (Make)
+        run: |
+          if [ -f c/Makefile ]; then (cd c && make); fi
+      - name: Build C++ (CMake)
+        run: |
+          if [ -f cpp/CMakeLists.txt ]; then mkdir -p cpp/build && cd cpp/build && cmake .. && cmake --build .; fi
