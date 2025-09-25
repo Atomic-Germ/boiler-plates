@@ -1,0 +1,31 @@
+name: Test Ada
+
+on:
+  push:
+    branches: [ main, ci-automation ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test Ada
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install GNAT (Ada Compiler)
+      run: |
+        sudo apt update
+        sudo apt install -y gnat
+
+    - name: Compile Ada program
+      run: |
+        cd ada
+        gnatmake hello.adb
+
+    - name: Run Ada program
+      run: |
+        cd ada
+        ./hello
