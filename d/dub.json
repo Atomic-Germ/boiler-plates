@@ -1,0 +1,7 @@
+{
+    "name": "d_boilerplate",
+    "description": "A simple D boilerplate project",
+    "authors": ["Your Name"],
+    "license": "MIT",
+    "dependencies": {}
+}
