@@ -3,6 +3,9 @@ Just some boiler plates
 
 ---
 
+[![Languages tested](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Atomic-Germ/boiler-plates/main/coverage-badge.json)](https://github.com/Atomic-Germ/boiler-plates/blob/main/coverage-badge.json)
+
+
 ## General HTML
 ```
 <!DOCTYPE html>

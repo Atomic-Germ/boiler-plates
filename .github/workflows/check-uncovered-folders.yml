@@ -1,5 +1,8 @@
 name: Coverage Check
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: [ main, ci-automation, new-languages ]
@@ -12,7 +15,58 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Run uncovered folders script
         run: |
           chmod +x ./list_uncovered_folders.sh
           ./list_uncovered_folders.sh
+
+      - name: Build coverage badge JSON
+        run: |
+          # Compute all top-level folders (directories ending with /)
+          all_folders=( $(ls -d */ 2>/dev/null | sed 's#/##') )
+
+          # Detect tested folders by presence of .github/workflows/test-<lang>.yml
+          tested_folders=( $(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#') )
+
+          total=${#all_folders[@]}
+
+          # Count how many folders are covered (have a test workflow)
+          covered=0
+          for f in "${all_folders[@]}"; do
+            if [[ " ${tested_folders[@]} " =~ " ${f} " ]]; then
+              covered=$((covered+1))
+            fi
+          done
+
+          # Choose color
+          color="red"
+          if [[ $total -eq 0 ]]; then
+            color="lightgrey"
+          else
+            pct=$(( 100 * covered / total ))
+            if [[ $pct -eq 100 ]]; then
+              color="brightgreen"
+            elif [[ $pct -ge 50 ]]; then
+              color="yellow"
+            else
+              color="red"
+            fi
+          fi
+
+          # Create shields-compatible JSON endpoint schema
+          # Build a compact JSON with the values and write to coverage-badge.json
+          printf '{"schemaVersion":1,"label":"languages tested","message":"%s/%s","color":"%s"}\n' "$covered" "$total" "$color" > coverage-badge.json
+
+          # Commit only if changed
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add coverage-badge.json || true
+          if ! git diff --staged --quiet --exit-code; then
+            git commit -m "chore: update coverage-badge.json by workflow"
+            git push origin HEAD:${{ github.ref_name }}
+          else
+            echo "No changes to coverage-badge.json"
+          fi
