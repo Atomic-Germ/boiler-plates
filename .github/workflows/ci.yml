@@ -28,7 +28,12 @@ jobs:
           if [ -f fastapi/requirements.txt ]; then pip install -r fastapi/requirements.txt; fi
       - name: Run tests
         run: |
-          PYTHONPATH=python-package/src pytest -q
+          # Run tests inside the poetry-created virtualenv so pytest is available
+          if [ -f python-package/pyproject.toml ]; then \
+            (cd python-package && poetry run pytest -q); \
+          else \
+            PYTHONPATH=python-package/src pytest -q; \
+          fi
 
   node:
     name: Node (Express & React)
