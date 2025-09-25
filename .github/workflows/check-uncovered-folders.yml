@@ -23,11 +23,13 @@ jobs:
           fetch-depth: 0
 
       - name: Run uncovered folders script
+        shell: bash
         run: |
           chmod +x ./list_uncovered_folders.sh
           ./list_uncovered_folders.sh
 
       - name: Build coverage badge JSON
+        shell: bash
         env:
           PAT: ${{ secrets.PAT }}
         run: |
@@ -163,6 +165,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compute missing languages
         id: compute_missing
+        shell: bash
         run: |
           exclude_pattern='^(.github$|bin$|obj$|node_modules$|\.vscode$|tests?$|dist$|docs$)'
           mapfile -t all_folders < <(ls -d */ 2>/dev/null | sed 's#/##' | grep -Ev "$exclude_pattern" || true)
