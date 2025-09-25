@@ -118,11 +118,23 @@ jobs:
 
               # Create a draft PR with the changes. Prefer gh, otherwise use PAT
               if command -v gh >/dev/null 2>&1; then
-                gh pr create --title "chore: add test workflow for ${safe_lang}" --body "This PR adds a placeholder test workflow and README entry for ${safe_lang}. Please replace the placeholder workflow with real steps." --base main --draft --label "ci: badge-update"
+                # create PR and capture number
+                pr_number=$(gh pr create --title "chore: add test workflow for ${safe_lang}" --body "This PR adds a placeholder test workflow and README entry for ${safe_lang}. Please replace the placeholder workflow with real steps." --base main --draft --label "ci: badge-update" --json number --jq .number)
               else
                 api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls"
                 payload=$(printf '{"title":"chore: add test workflow for %s","head":"%s","base":"main","body":"This PR adds a placeholder test workflow and README entry for %s. Please replace the placeholder workflow with real steps.","draft":true,"labels":["ci: badge-update"]}' "$safe_lang" "$branch" "$safe_lang")
-                curl -s -S -H "Authorization: token ${PAT}" -X POST -d "$payload" "$api_url" >/dev/null || true
+                resp=$(curl -s -S -H "Authorization: token ${PAT}" -X POST -d "$payload" "$api_url" || true)
+                pr_number=$(echo "$resp" | jq -r '.number // empty' || true)
+              fi
+
+              # If we have a PR number, write it to .badge-pr.json in the branch so PR runs can read it
+              if [ -n "$pr_number" ]; then
+                printf '{"pr":%s}\n' "$pr_number" > .badge-pr.json
+                git add .badge-pr.json || true
+                git commit -m "chore(ci): record PR number for ${safe_lang} (#${pr_number})" || true
+                git push origin "$branch" || true
+              else
+                echo "Could not determine PR number for ${safe_lang}"
               fi
             else
               echo "No changes to commit for ${safe_lang}"
@@ -154,10 +166,21 @@ jobs:
           printf '%s\n' "${missing[@]}" | jq -R -s -c 'split("\n")[:-1]' > missing.json || true
           missing_json=$(cat missing.json || echo '[]')
           echo "missing=$missing_json" >> $GITHUB_OUTPUT
+          # If the branch contains a .badge-pr.json file, expose it as output so the commenter can use it
+          if [ -f .badge-pr.json ]; then
+            prnum=$(jq -r '.pr // empty' .badge-pr.json || true)
+            if [ -n "$prnum" ]; then
+              echo "badge_pr=$prnum" >> $GITHUB_OUTPUT
+            fi
+          fi
 
       - name: Comment on PR with suggestions
         uses: actions/github-script@v6
+        env:
+          BADGE_PR: ${{ steps.compute_missing.outputs.badge_pr }}
+          MISSING: ${{ steps.compute_missing.outputs.missing }}
         with:
+
           script: |
             const missing = JSON.parse(process.env.MISSING || '[]')
             if (missing.length === 0) {
@@ -165,13 +188,16 @@ jobs:
               return
             }
 
-            // Try to get the PR number from context.pull_request or context.issue
-            let prNumber = github.context.payload && github.context.payload.pull_request ? github.context.payload.pull_request.number : (github.context.issue ? github.context.issue.number : null)
+            // Prefer PR number written into the branch by the creator (guaranteed mapping)
+            let prNumber = process.env.BADGE_PR ? Number(process.env.BADGE_PR)
+              : (github.context?.payload?.pull_request?.number
+                ?? github.context?.issue?.number
+                ?? null);
 
             // If we don't have a PR number, attempt to find an open PR matching the current branch
             if (!prNumber) {
               try {
-                const ref = github.context.ref || ''
+                const ref = github.context?.ref || ''
                 const head = ref.replace('refs/heads/', '')
                 if (head) {
                   const { data: prs } = await github.rest.pulls.list({ owner: context.repo.owner, repo: context.repo.repo, head: `${context.repo.owner}:${head}`, state: 'open' })
@@ -201,5 +227,4 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: prNumber, body })
             }
-        env:
-          MISSING: ${{ steps.compute_missing.outputs.missing }}
+        
