@@ -15,7 +15,6 @@ on:
 jobs:
   check-uncovered:
     name: Check Uncovered Folders
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
