@@ -9,16 +9,16 @@ on:
 jobs:
   build:
     name: Build and Test CSharp
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install .NET
-      run: |
-        sudo apt update
-        sudo apt install -y dotnet-sdk-6.0
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '6.0.x'
 
     - name: Build and Test CSharp project
       run: |
