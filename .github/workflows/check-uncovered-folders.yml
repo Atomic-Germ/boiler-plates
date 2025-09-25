@@ -28,6 +28,7 @@ jobs:
           ./list_uncovered_folders.sh
 
       - name: Build coverage badge JSON
+        shell: bash
         env:
           PAT: ${{ secrets.PAT }}
         run: |
@@ -166,6 +167,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Compute missing languages
+        shell: bash
         id: compute_missing
         run: |
           exclude_pattern='^(.github$|bin$|obj$|node_modules$|\.vscode$|tests?$|dist$|docs$)'
