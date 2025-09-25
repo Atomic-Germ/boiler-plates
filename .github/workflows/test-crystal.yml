@@ -15,9 +15,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install Crystal from official repository
+    - name: Install Crystal
       run: |
-        curl -fsSL https://crystal-lang.org/install.sh | bash
+        sudo apt update
+        sudo apt install -y crystal
 
     - name: Run Crystal program
       run: |
