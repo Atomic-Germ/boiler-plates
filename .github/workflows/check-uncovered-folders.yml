@@ -164,22 +164,42 @@ jobs:
               console.log('No missing languages to report')
               return
             }
-            const pr = github.context.payload.pull_request
-            if (!pr) {
-              console.log('No pull request in context; skipping comment')
+
+            // Try to get the PR number from context.pull_request or context.issue
+            let prNumber = github.context.payload && github.context.payload.pull_request ? github.context.payload.pull_request.number : (github.context.issue ? github.context.issue.number : null)
+
+            // If we don't have a PR number, attempt to find an open PR matching the current branch
+            if (!prNumber) {
+              try {
+                const ref = github.context.ref || ''
+                const head = ref.replace('refs/heads/', '')
+                if (head) {
+                  const { data: prs } = await github.rest.pulls.list({ owner: context.repo.owner, repo: context.repo.repo, head: `${context.repo.owner}:${head}`, state: 'open' })
+                  if (prs && prs.length > 0) {
+                    prNumber = prs[0].number
+                  }
+                }
+              } catch (err) {
+                console.log('Error while searching PRs by branch:', err.message || err)
+              }
+            }
+
+            if (!prNumber) {
+              console.log('No pull request found in context or by branch; skipping comment')
               return
             }
+
             const body = ['### Missing language test-workflows', '', 'The following language folders do not have a `test-<language>.yml` workflow. Consider adding one:','']
               .concat(missing.map(m => `- \`${m}\` - create .github/workflows/test-${m}.yml`))
               .join('\n')
 
             // Find existing bot comment
-            const { data: comments } = await github.rest.issues.listComments({ owner: context.repo.owner, repo: context.repo.repo, issue_number: pr.number })
-            const botComment = comments.find(c => c.user && c.user.type === 'Bot' && c.body && c.body.includes('Missing language test-workflows'))
+            const { data: comments } = await github.rest.issues.listComments({ owner: context.repo.owner, repo: context.repo.repo, issue_number: prNumber })
+            const botComment = (comments || []).find(c => c.user && c.user.type === 'Bot' && c.body && c.body.includes('Missing language test-workflows'))
             if (botComment) {
               await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: botComment.id, body })
             } else {
-              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: pr.number, body })
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: prNumber, body })
             }
         env:
           MISSING: ${{ steps.compute_missing.outputs.missing }}
