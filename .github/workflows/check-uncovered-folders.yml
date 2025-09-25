@@ -2,9 +2,10 @@ name: Check Uncovered Folders
 
 on:
   push:
-    branches: [ main, ci-automation, new-languages ]
+    branches: [ main, ci-automation, new-languages, debug ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   check-uncovered:
