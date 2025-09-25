@@ -2,12 +2,14 @@ name: Coverage Check
 
 permissions:
   contents: write
+  workflows: write
 
 on:
   push:
     branches: [ main, ci-automation, new-languages ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   check-uncovered:
