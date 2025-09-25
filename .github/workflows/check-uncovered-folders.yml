@@ -3,6 +3,7 @@ name: Check Uncovered Folders
 permissions:
   contents: write
   actions: write
+  workflows: write
   pull-requests: write
 
 on:
