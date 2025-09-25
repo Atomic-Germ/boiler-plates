@@ -67,7 +67,7 @@ jobs:
           go-version: '1.21'
       - name: Build
         run: |
-          if [ -f go/main.go ]; then go build ./go; fi
+          if [ -f go/main.go ]; then (cd go && go build); fi
 
   rust:
     name: Rust build
