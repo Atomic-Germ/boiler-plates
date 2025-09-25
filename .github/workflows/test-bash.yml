@@ -1,4 +1,4 @@
-name: Test Bash
+name: Test - Bash
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Run Bash script
+    - name: Run program
       run: |
         cd bash
         chmod +x hello.sh

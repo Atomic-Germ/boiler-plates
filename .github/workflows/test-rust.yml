@@ -1,4 +1,4 @@
-name: Rust tests
+name: Test - Rust
 
 on:
   push:
@@ -8,11 +8,12 @@ on:
 
 jobs:
   rust:
-    name: Rust build
+    name: Build and Test Rust
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Rust
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable

@@ -1,4 +1,4 @@
-name: C/C++ tests
+name: Test - C/C++
 
 on:
   push:
@@ -8,13 +8,14 @@ on:
 
 jobs:
   cpp:
-    name: C/C++ build
+    name: Build and Test C/C++
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Build C (Make)
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build (C - Make)
         run: |
           if [ -f c/Makefile ]; then (cd c && make); fi
-      - name: Build C++ (CMake)
+      - name: Build (C++ - CMake)
         run: |
           if [ -f cpp/CMakeLists.txt ]; then mkdir -p cpp/build && cd cpp/build && cmake .. && cmake --build .; fi

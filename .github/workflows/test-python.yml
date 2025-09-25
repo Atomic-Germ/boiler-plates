@@ -1,4 +1,4 @@
-name: Python tests
+name: Test - Python
 
 on:
   push:
@@ -8,13 +8,14 @@ on:
 
 jobs:
   python:
-    name: Python tests
+    name: Build and Test Python
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ['3.10', '3.11']
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:

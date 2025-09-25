@@ -1,4 +1,4 @@
-name: Java tests
+name: Test - Java
 
 on:
   push:
@@ -8,15 +8,16 @@ on:
 
 jobs:
   java:
-    name: Java (Maven) build
+    name: Build and Test Java
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Build with Maven
+      - name: Build
         run: |
           if [ -f java-maven/pom.xml ]; then (cd java-maven && mvn -B -DskipTests package); fi

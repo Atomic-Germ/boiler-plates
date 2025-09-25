@@ -1,4 +1,4 @@
-name: Test Ada
+name: Test - Ada
 
 on:
   push:
@@ -15,17 +15,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install GNAT (Ada Compiler)
+    - name: Install dependencies (GNAT)
       run: |
         sudo apt update
         sudo apt install -y gnat
-
-    - name: Compile Ada program
+    - name: Build
       run: |
         cd ada
         gnatmake hello.adb
-
-    - name: Run Ada program
+    - name: Run program
       run: |
         cd ada
         ./hello

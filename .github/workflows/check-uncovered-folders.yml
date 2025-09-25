@@ -1,4 +1,4 @@
-name: Check Uncovered Folders
+name: Coverage Check
 
 on:
   push:

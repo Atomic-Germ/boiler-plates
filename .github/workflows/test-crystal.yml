@@ -1,4 +1,4 @@
-name: Test Crystal
+name: Test - Crystal
 
 on:
   push:
@@ -15,12 +15,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install Crystal
+    - name: Install dependencies (Crystal)
       run: |
         sudo apt update
         sudo apt install -y crystal
-
-    - name: Run Crystal program
+    - name: Run program
       run: |
         cd crystal/src
         crystal run main.cr

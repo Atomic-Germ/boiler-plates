@@ -1,4 +1,4 @@
-name: Test D
+name: Test - D
 
 on:
   push:
@@ -15,10 +15,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: D Compiler Installation
+    - name: Set up D compiler
       uses: dlang-community/setup-dlang@v2.0.0
-
-    - name: Build and Run D program
+    - name: Build and Run
       run: |
         cd d/source
         dmd app.d

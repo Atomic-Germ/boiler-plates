@@ -1,4 +1,4 @@
-name: Test COBOL
+name: Test - COBOL
 
 on:
   push:
@@ -15,17 +15,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install GnuCOBOL
+    - name: Install dependencies (GnuCOBOL)
       run: |
         sudo apt update
         sudo apt install -y gnucobol3
-
-    - name: Compile COBOL program
+    - name: Build
       run: |
         cd cobol
         cobc -x -o hello hello.cob
-
-    - name: Run COBOL program
+    - name: Run program
       run: |
         cd cobol
         ./hello

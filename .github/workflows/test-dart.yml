@@ -1,4 +1,4 @@
-name: Test Dart
+name: Test - Dart
 
 on:
   push:
@@ -15,10 +15,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Dart VM
+    - name: Set up Dart
       uses: segfaultmedaddy/setup-dart@v1
 
-    - name: Run Dart program
+    - name: Run program
       run: |
         cd dart/bin
         dart run main.dart
