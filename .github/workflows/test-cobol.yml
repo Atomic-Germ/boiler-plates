@@ -1,0 +1,31 @@
+name: Test COBOL
+
+on:
+  push:
+    branches: [ main, ci-automation ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test COBOL
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install GnuCOBOL
+      run: |
+        sudo apt update
+        sudo apt install -y open-cobol
+
+    - name: Compile COBOL program
+      run: |
+        cd cobol
+        cobc -x -o hello hello.cob
+
+    - name: Run COBOL program
+      run: |
+        cd cobol
+        ./hello
