@@ -29,16 +29,15 @@ jobs:
           ./list_uncovered_folders.sh
 
       - name: Build coverage badge JSON
-        shell: bash
         env:
           PAT: ${{ secrets.PAT }}
         run: |
           # Filter top-level folders to exclude non-language dirs
           exclude_pattern='^(.github$|bin$|obj$|node_modules$|\.vscode$|tests?$|dist$|docs$)'
-          all_folders=($(ls -d */ 2>/dev/null | sed 's#/##' | grep -Ev "$exclude_pattern" || true))
+          mapfile -t all_folders < <(ls -d */ 2>/dev/null | sed 's#/##' | grep -Ev "$exclude_pattern" || true)
 
           # Detect tested folders by presence of .github/workflows/test-<lang>.yml
-          tested_langs=($(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#' || true))
+          mapfile -t tested_langs < <(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#' || true)
           # Map languages to their corresponding folders
           tested_folders=()
           for lang in "${tested_langs[@]}"; do
@@ -165,11 +164,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compute missing languages
         id: compute_missing
-        shell: bash
         run: |
           exclude_pattern='^(.github$|bin$|obj$|node_modules$|\.vscode$|tests?$|dist$|docs$)'
-          all_folders=($(ls -d */ 2>/dev/null | sed 's#/##' | grep -Ev "$exclude_pattern" || true))
-          tested_langs=($(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#' || true))
+          mapfile -t all_folders < <(ls -d */ 2>/dev/null | sed 's#/##' | grep -Ev "$exclude_pattern" || true)
+          mapfile -t tested_langs < <(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#' || true)
           tested_folders=()
           for lang in "${tested_langs[@]}"; do
             case "$lang" in
