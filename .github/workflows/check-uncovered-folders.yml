@@ -15,7 +15,7 @@ on:
 jobs:
   check-uncovered:
     name: Check Uncovered Folders
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +36,18 @@ jobs:
           mapfile -t all_folders < <(ls -d */ 2>/dev/null | sed 's#/##' | grep -Ev "$exclude_pattern" || true)
 
           # Detect tested folders by presence of .github/workflows/test-<lang>.yml
-          mapfile -t tested_folders < <(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#' || true)
+          mapfile -t tested_langs < <(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#' || true)
+
+          # Map languages to their corresponding folders
+          tested_folders=()
+          for lang in "${tested_langs[@]}"; do
+            case "$lang" in
+              java) tested_folders+=("java-maven") ;;
+              node) tested_folders+=("node-express" "react-vite") ;;
+              python) tested_folders+=("python-package" "flask-app" "fastapi") ;;
+              *) tested_folders+=("$lang") ;;
+            esac
+          done
 
           total=${#all_folders[@]}
 
@@ -159,7 +170,16 @@ jobs:
         run: |
           exclude_pattern='^(.github$|bin$|obj$|node_modules$|\.vscode$|tests?$|dist$|docs$)'
           mapfile -t all_folders < <(ls -d */ 2>/dev/null | sed 's#/##' | grep -Ev "$exclude_pattern" || true)
-          mapfile -t tested_folders < <(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#' || true)
+          mapfile -t tested_langs < <(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#' || true)
+          tested_folders=()
+          for lang in "${tested_langs[@]}"; do
+            case "$lang" in
+              java) tested_folders+=("java-maven") ;;
+              node) tested_folders+=("node-express" "react-vite") ;;
+              python) tested_folders+=("python-package" "flask-app" "fastapi") ;;
+              *) tested_folders+=("$lang") ;;
+            esac
+          done
           missing=()
           for f in "${all_folders[@]}"; do
             if [[ ! " ${tested_folders[@]} " =~ " ${f} " ]]; then
