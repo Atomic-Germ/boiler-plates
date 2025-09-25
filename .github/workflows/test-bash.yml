@@ -1,0 +1,22 @@
+name: Test Bash
+
+on:
+  push:
+    branches: [ main, ci-automation ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test Bash
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Bash script
+      run: |
+        cd bash
+        chmod +x hello.sh
+        ./hello.sh
