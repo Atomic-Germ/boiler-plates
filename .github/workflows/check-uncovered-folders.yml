@@ -4,6 +4,7 @@ permissions:
   contents: write
   actions: write
   pull-requests: write
+  workflows: write
 
 on:
   push:
@@ -130,7 +131,7 @@ jobs:
               # Create a draft PR with the changes. Prefer gh, otherwise use PAT
               if command -v gh >/dev/null 2>&1; then
                 # create PR and capture number
-                pr_number=$(gh pr create --title "chore: add test workflow for ${safe_lang}" --body "This PR adds a placeholder test workflow and README entry for ${safe_lang}. Please replace the placeholder workflow with real steps." --base main --draft --label "ci: badge-update" --json number --jq .number)
+                pr_number=$(GH_TOKEN=${{ secrets.GITHUB_TOKEN }} gh pr create --title "chore: add test workflow for ${safe_lang}" --body "This PR adds a placeholder test workflow and README entry for ${safe_lang}. Please replace the placeholder workflow with real steps." --base main --draft --label "ci: badge-update" --json number --jq .number)
               else
                 api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls"
                 payload=$(printf '{"title":"chore: add test workflow for %s","head":"%s","base":"main","body":"This PR adds a placeholder test workflow and README entry for %s. Please replace the placeholder workflow with real steps.","draft":true,"labels":["ci: badge-update"]}' "$safe_lang" "$branch" "$safe_lang")
