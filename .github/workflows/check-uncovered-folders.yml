@@ -1,5 +1,10 @@
 name: Check Uncovered Folders
 
+permissions:
+  contents: write
+  actions: write
+  pull-requests: write
+
 on:
   push:
     branches: [ main, ci-automation, new-languages, debug ]
@@ -10,10 +15,233 @@ on:
 jobs:
   check-uncovered:
     name: Check Uncovered Folders
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Run uncovered folders script
         run: |
           chmod +x ./list_uncovered_folders.sh
           ./list_uncovered_folders.sh
+
+      - name: Build coverage badge JSON
+        env:
+          PAT: ${{ secrets.PAT }}
+        run: |
+          # Filter top-level folders to exclude non-language dirs
+          exclude_pattern='^(.github$|bin$|obj$|node_modules$|\.vscode$|\.github$|tests?$|dist$|docs$)'
+          mapfile -t all_folders < <(ls -d */ 2>/dev/null | sed 's#/##' | grep -Ev "$exclude_pattern" || true)
+
+          # Detect tested folders by presence of .github/workflows/test-<lang>.yml
+          mapfile -t tested_langs < <(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#' || true)
+          # Map languages to their corresponding folders
+          tested_folders=()
+          for lang in "${tested_langs[@]}"; do
+            case "$lang" in
+              java) tested_folders+=("java-maven") ;;
+              node) tested_folders+=("node-express" "react-vite") ;;
+              python) tested_folders+=("python-package" "flask-app" "fastapi") ;;
+              *) tested_folders+=("$lang") ;;
+            esac
+          done
+
+          total=${#all_folders[@]}
+
+          # Count how many folders are covered (have a test workflow)
+          covered=0
+          missing=()
+          for f in "${all_folders[@]}"; do
+            if [[ " ${tested_folders[@]} " =~ " ${f} " ]]; then
+              covered=$((covered+1))
+            else
+              missing+=("$f")
+            fi
+          done
+
+          # Choose color
+          color="red"
+          if [[ $total -eq 0 ]]; then
+            color="lightgrey"
+          else
+            pct=$(( 100 * covered / total ))
+            if [[ $pct -eq 100 ]]; then
+              color="brightgreen"
+            elif [[ $pct -ge 50 ]]; then
+              color="yellow"
+            else
+              color="red"
+            fi
+          fi
+
+          # Create shields-compatible JSON endpoint schema
+          # Build a compact JSON with the values and write to coverage-badge.json
+          printf '{"schemaVersion":1,"label":"languages tested","message":"%s/%s","color":"%s"}\n' "$covered" "$total" "$color" > coverage-badge.json
+          # Build an updated, alphabetized list of all language folders to place under '## Included boilerplates'
+          printf '%s\n' "${all_folders[@]}" | sort -f | awk '{printf "- `%s/` - Minimal %s example\n", $0, $0}' > /tmp/included_list.txt || true
+          # For each missing language create a branch which adds a minimal test workflow and README entry,
+          # commit changes, push branch, and open a draft PR.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for lang in "${missing[@]}"; do
+            safe_lang=$(echo "$lang" | tr '[:upper:]' '[:lower:]' | tr ' /' '-_')
+            branch="add-${safe_lang}-test-$(date +%s)"
+            git checkout -b "$branch"
+
+            # Create a minimal test workflow file for the language (use printf to avoid heredoc parsing issues)
+            mkdir -p .github/workflows
+            printf 'name: Test %s\non: [push, pull_request]\njobs:\n  placeholder:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Placeholder step\n        run: echo "This is a placeholder test workflow for %s. Please replace with real steps."\n' "$safe_lang" "$safe_lang" > ".github/workflows/test-${safe_lang}.yml"
+            # Add a README entry if not present (append a bullet to README.md)
+            readme_entry="- \`${safe_lang}/\` - Minimal ${safe_lang} example"
+            if ! grep -Fq "${readme_entry}" README.md 2>/dev/null; then
+              printf '\n%s\n' "${readme_entry}" >> README.md
+            fi
+
+            # Add the coverage badge JSON as well (already generated) and commit everything
+            git add coverage-badge.json .github/workflows/test-${safe_lang}.yml README.md || true
+            if ! git diff --staged --quiet --exit-code; then
+              git commit -m "chore: add placeholder test workflow and README entry for ${safe_lang}"
+              git push --set-upstream origin "$branch"
+
+              # Regenerate the Included boilerplates section in README.md using the full, alphabetized list
+              if grep -q '^## Included boilerplates' README.md; then
+                s=$(grep -n '^## Included boilerplates' README.md | head -n1 | cut -d: -f1)
+                n=$(awk "NR>${s} && /^## /{print NR; exit}" README.md || true)
+                head -n $((s-1)) README.md > /tmp/README.top
+                echo '## Included boilerplates' >> /tmp/README.top
+                echo '' >> /tmp/README.top
+                cat /tmp/included_list.txt >> /tmp/README.top
+                echo '' >> /tmp/README.top
+                if [ -n "$n" ]; then
+                  tail -n +$n README.md >> /tmp/README.top
+                fi
+                mv /tmp/README.top README.md
+              else
+                echo '' >> README.md
+                echo '## Included boilerplates' >> README.md
+                echo '' >> /tmp/README.top
+                cat /tmp/included_list.txt >> README.md
+              fi
+
+              # Create a draft PR with the changes. Prefer gh, otherwise use PAT
+              if command -v gh >/dev/null 2>&1; then
+                # create PR and capture number
+                pr_number=$(gh pr create --title "chore: add test workflow for ${safe_lang}" --body "This PR adds a placeholder test workflow and README entry for ${safe_lang}. Please replace the placeholder workflow with real steps." --base main --draft --label "ci: badge-update" --json number --jq .number)
+              else
+                api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls"
+                payload=$(printf '{"title":"chore: add test workflow for %s","head":"%s","base":"main","body":"This PR adds a placeholder test workflow and README entry for %s. Please replace the placeholder workflow with real steps.","draft":true,"labels":["ci: badge-update"]}' "$safe_lang" "$branch" "$safe_lang")
+                resp=$(curl -s -S -H "Authorization: token ${PAT}" -X POST -d "$payload" "$api_url" || true)
+                pr_number=$(echo "$resp" | jq -r '.number // empty' || true)
+              fi
+
+              # If we have a PR number, write it to .badge-pr.json in the branch so PR runs can read it
+              if [ -n "$pr_number" ]; then
+                printf '{"pr":%s}\n' "$pr_number" > .badge-pr.json
+                git add .badge-pr.json || true
+                git commit -m "chore(ci): record PR number for ${safe_lang} (#${pr_number})" || true
+                git push origin "$branch" || true
+              else
+                echo "Could not determine PR number for ${safe_lang}"
+              fi
+            else
+              echo "No changes to commit for ${safe_lang}"
+            fi
+
+            # Return to main for next iteration
+            git checkout main
+            git branch -D "$branch" || true
+          done
+
+  pr-annotate:
+    name: Annotate PR with missing language suggestions
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compute missing languages
+        id: compute_missing
+        run: |
+          exclude_pattern='^(.github$|bin$|obj$|node_modules$|\.vscode$|tests?$|dist$|docs$)'
+          mapfile -t all_folders < <(ls -d */ 2>/dev/null | sed 's#/##' | grep -Ev "$exclude_pattern" || true)
+          mapfile -t tested_langs < <(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#' || true)
+          tested_folders=()
+          for lang in "${tested_langs[@]}"; do
+            case "$lang" in
+              java) tested_folders+=("java-maven") ;;
+              node) tested_folders+=("node-express" "react-vite") ;;
+              python) tested_folders+=("python-package" "flask-app" "fastapi") ;;
+              *) tested_folders+=("$lang") ;;
+            esac
+          done
+          missing=()
+          for f in "${all_folders[@]}"; do
+            if [[ ! " ${tested_folders[@]} " =~ " ${f} " ]]; then
+              missing+=("$f")
+            fi
+          done
+          printf '%s\n' "${missing[@]}" | jq -R -s -c 'split("\n")[:-1]' > missing.json || true
+          missing_json=$(cat missing.json || echo '[]')
+          echo "missing=$missing_json" >> $GITHUB_OUTPUT
+          # If the branch contains a .badge-pr.json file, expose it as output so the commenter can use it
+          if [ -f .badge-pr.json ]; then
+            prnum=$(jq -r '.pr // empty' .badge-pr.json || true)
+            if [ -n "$prnum" ]; then
+              echo "badge_pr=$prnum" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Comment on PR with suggestions
+        uses: actions/github-script@v6
+        env:
+          BADGE_PR: ${{ steps.compute_missing.outputs.badge_pr }}
+          MISSING: ${{ steps.compute_missing.outputs.missing }}
+        with:
+          script: |
+            const missing = JSON.parse(process.env.MISSING || '[]')
+            if (missing.length === 0) {
+              console.log('No missing languages to report')
+              return
+            }
+
+            // Prefer PR number written into the branch by the creator (guaranteed mapping)
+            let prNumber = process.env.BADGE_PR ? Number(process.env.BADGE_PR)
+              : (github.context?.payload?.pull_request?.number
+                ?? github.context?.issue?.number
+                ?? null);
+
+            // If we don't have a PR number, attempt to find an open PR matching the current branch
+            if (!prNumber) {
+              try {
+                const ref = github.context?.ref || ''
+                const head = ref.replace('refs/heads/', '')
+                if (head) {
+                  const { data: prs } = await github.rest.pulls.list({ owner: context.repo.owner, repo: context.repo.repo, head: `${context.repo.owner}:${head}`, state: 'open' })
+                  if (prs && prs.length > 0) {
+                    prNumber = prs[0].number
+                  }
+                }
+              } catch (err) {
+                console.log('Error while searching PRs by branch:', err.message || err)
+              }
+            }
+
+            if (!prNumber) {
+              console.log('No pull request found in context or by branch; skipping comment')
+              return
+            }
+
+            const body = ['### Missing language test-workflows', '', 'The following language folders do not have a `test-<language>.yml` workflow. Consider adding one:','']
+              .concat(missing.map(m => `- \`${m}\` - create .github/workflows/test-${m}.yml`))
+              .join('\n')
+
+            // Find existing bot comment
+            const { data: comments } = await github.rest.issues.listComments({ owner: context.repo.owner, repo: context.repo.repo, issue_number: prNumber })
+            const botComment = (comments || []).find(c => c.user && c.user.type === 'Bot' && c.body && c.body.includes('Missing language test-workflows'))
+            if (botComment) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: botComment.id, body })
+            } else {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: prNumber, body })
+            }
