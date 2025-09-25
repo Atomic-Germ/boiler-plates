@@ -15,10 +15,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install DMD (D Compiler)
-      run: |
-        curl https://dlang.org/install.sh install dmd -v
-        source ~/dlang/dmd-2.111.0/activate
+    - name: D Compiler Installation
+      uses: dlang-community/setup-dlang@v2.0.0
 
     - name: Build and Run D program
       run: |
