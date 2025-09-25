@@ -1,0 +1,27 @@
+name: Test D
+
+on:
+  push:
+    branches: [ main, ci-automation ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test D
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install DMD (D Compiler)
+      run: |
+        curl https://dlang.org/install.sh install dmd -v
+        source ~/dlang/dmd-2.111.0/activate
+
+    - name: Build and Run D program
+      run: |
+        cd d/source
+        dmd app.d
+        ./app
