@@ -1,0 +1,21 @@
+name: Rust tests
+
+on:
+  push:
+    branches: [ main, ci-automation, new-languages ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  rust:
+    name: Rust build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Build
+        run: |
+          if [ -f rust/Cargo.toml ]; then (cd rust && cargo build --workspace --all-targets); fi

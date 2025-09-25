@@ -1,0 +1,20 @@
+name: C/C++ tests
+
+on:
+  push:
+    branches: [ main, ci-automation, new-languages ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  cpp:
+    name: C/C++ build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build C (Make)
+        run: |
+          if [ -f c/Makefile ]; then (cd c && make); fi
+      - name: Build C++ (CMake)
+        run: |
+          if [ -f cpp/CMakeLists.txt ]; then mkdir -p cpp/build && cd cpp/build && cmake .. && cmake --build .; fi

@@ -1,25 +1,23 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# List of all folders in the repository
-all_folders=(
-  ada bash c cobol cpp crystal csharp d dart docker elixir erlang fortran fsharp go groovy haskell java-maven julia kotlin lua nim node-express objective-c perl php powershell python-package r react-vite ruby rust scala swift typescript v zig
-)
+# Generates a list of all language folders in the repository with ls
+all_folders=($(ls -d */ | sed 's#/##'))
 
-# Folders covered in CI
-ci_folders=(
-  python-package flask-app fastapi node-express react-vite go rust java-maven c cpp
-)
+# Matches list of folders to `.github/workflows/test-<language>.yml` files
+tested_folders=($(ls .github/workflows/test-*.yml 2>/dev/null | sed -E 's#.*/test-(.*)\.yml#\1#'))
 
-# Find folders not covered in CI
-uncovered_folders=()
+# Find folders without tests
+untested_folders=()
 for folder in "${all_folders[@]}"; do
-  if [[ ! " ${ci_folders[@]} " =~ " ${folder} " ]]; then
-    uncovered_folders+=("$folder")
+  if [[ ! " ${tested_folders[@]} " =~ " ${folder} " ]]; then
+    untested_folders+=("$folder")
   fi
 done
 
-# Report uncovered folders
-echo "Folders not covered in CI:"
-for folder in "${uncovered_folders[@]}"; do
+# Report untested folders
+echo "Folders without tests:"
+for folder in "${untested_folders[@]}"; do
   echo "- $folder"
 done
+echo "Total number of folders without tests: ${#untested_folders[@]}"
+exit 0

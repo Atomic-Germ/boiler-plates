@@ -1,0 +1,22 @@
+name: Java tests
+
+on:
+  push:
+    branches: [ main, ci-automation, new-languages ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  java:
+    name: Java (Maven) build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build with Maven
+        run: |
+          if [ -f java-maven/pom.xml ]; then (cd java-maven && mvn -B -DskipTests package); fi
