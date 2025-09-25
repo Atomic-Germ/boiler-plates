@@ -18,7 +18,7 @@ jobs:
     - name: Install GnuCOBOL
       run: |
         sudo apt update
-        sudo apt install -y open-cobol
+        sudo apt install -y gnucobol3
 
     - name: Compile COBOL program
       run: |
